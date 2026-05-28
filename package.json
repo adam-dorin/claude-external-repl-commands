@@ -8,9 +8,12 @@
   "files": [
     "bin/",
     "lib/",
+    "native/index.js",
+    "native/*.node",
     "README.md"
   ],
   "scripts": {
+    "build:native": "cargo build --release --manifest-path native/Cargo.toml && node native/stage.cjs",
     "test": "node regression.js",
     "test:bun": "bun regression.js",
     "smoke": "node smoke-test.js",
@@ -32,7 +35,7 @@
     "cli",
     "pty",
     "conpty",
-    "node-pty",
+    "napi",
     "send-keys"
   ],
   "license": "MIT",
@@ -44,11 +47,5 @@
   "homepage": "https://github.com/adam-dorin/claude-external-repl-commands#readme",
   "bugs": {
     "url": "https://github.com/adam-dorin/claude-external-repl-commands/issues"
-  },
-  "dependencies": {
-    "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1"
-  },
-  "trustedDependencies": [
-    "@homebridge/node-pty-prebuilt-multiarch"
-  ]
+  }
 }

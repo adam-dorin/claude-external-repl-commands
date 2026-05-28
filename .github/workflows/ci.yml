@@ -21,29 +21,22 @@ jobs:
         runtime: [node, bun]
     steps:
       - uses: actions/checkout@v6
-
-      # Node is needed even for the Bun rows: node-pty's prebuilt postinstall
-      # shells out to `node`, and the host re-execs under Node on Windows+Bun.
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-
       - name: Setup Bun
         if: matrix.runtime == 'bun'
         uses: oven-sh/setup-bun@v2
-
-      - name: Install deps (node)
-        if: matrix.runtime == 'node'
-        run: npm install
-
-      - name: Install deps (bun)
-        if: matrix.runtime == 'bun'
-        run: bun install
-
+      - uses: dtolnay/rust-toolchain@stable
+      # The host loads the first-party native PTY addon — build + stage it first.
+      - name: Build native addon
+        working-directory: native
+        run: cargo build --release
+      - name: Stage addon binary
+        run: node native/stage.cjs
       - name: Regression suite (node)
         if: matrix.runtime == 'node'
         run: node regression.js
-
       - name: Regression suite (bun)
         if: matrix.runtime == 'bun'
         run: bun regression.js
@@ -68,3 +61,9 @@ jobs:
         run: node native/stage.cjs
       - name: Test addon (spawn/inject/read)
         run: node native/test-addon.cjs
+      - name: Upload prebuilt addon
+        uses: actions/upload-artifact@v4
+        with:
+          name: eclaude_pty-${{ matrix.os }}
+          path: native/eclaude_pty.*.node
+          if-no-files-found: error

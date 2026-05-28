@@ -18,8 +18,9 @@ inside a pseudo-terminal you own, then push REPL/slash commands — like `/clear
 
 `claude` can't be cleared programmatically: `/clear` is interactive-only, and no
 hook/flag invokes it. `eclaude` *owns the terminal* Claude runs in (via a ConPTY on
-Windows / a pty on POSIX, using [node-pty]) and opens a small IPC endpoint. Anything
-sent there is "typed" into the session followed by Enter. That's your `send-keys`.
+Windows / a pty on POSIX, using a small first-party native addon) and opens a small IPC
+endpoint. Anything sent there is "typed" into the session followed by Enter. That's your
+`send-keys`.
 
 ## Disclosure
 
@@ -31,11 +32,9 @@ This utility was built with [Claude Code](https://claude.com/claude-code).
 npm install -g eclaude      # or: bun add -g eclaude
 ```
 
-Ships a prebuilt `node-pty`, so no C++ toolchain is needed.
-
-> **Bun note:** the native pty postinstall must be allowed. This package declares
-> `trustedDependencies`, so `bun install` runs it automatically. If pty fails to
-> load, run `bun pm trust @homebridge/node-pty-prebuilt-multiarch`.
+The pty is a **first-party native addon** bundled as a prebuilt `.node` per platform —
+no third-party dependency, no postinstall, and no compiler/toolchain needed at install
+time. (`claude` itself must be on your PATH.)
 
 ## Use
 
@@ -82,18 +81,17 @@ or a cron job — all just shell out to `eclaude send`.
 
 ## Runtimes: Node and Bun
 
-Both are supported; Bun is fine for day-to-day use.
+Both run the host **natively** — no re-exec, no runtime dependency.
 
-- **`eclaude send`** runs natively under Node and Bun on all platforms.
-- **The host** writes to the pty, and Bun can't drive node-pty's fd-backed I/O on
-  **any** platform (Windows throws, POSIX silently drops writes). So under Bun the host
-  **transparently re-execs under Node** — automatic, but it requires `node` on PATH.
-  Under Node the host runs directly.
+- The pty is a **first-party native addon** (`native/`, Rust + N-API: `forkpty` on POSIX,
+  ConPTY on Windows), bundled as a prebuilt `.node` per platform. N-API is built into Node
+  and supported by Bun, so the same binary loads under both.
+- The host does **raw** read/write on the pty (no fd-backed streams), which is what lets
+  it run under Bun — where node-pty's stream wrapping could not.
 
-> **Platform status:** developed and manually verified on **Windows** (including against
-> a live Claude session). macOS/Linux are exercised by CI (`win/linux/mac × node/bun`,
-> running the regression suite) but not yet hand-tested against live Claude — please
-> report issues.
+> **Platform status:** developed and verified on **Windows** (incl. a live Claude session)
+> and Linux, under both Node and Bun. macOS is exercised by CI (`win/linux/mac × node/bun`)
+> but not yet hand-tested against live Claude — please report issues.
 
 ```sh
 bun regression.js     # full suite (no Claude/TTY needed)
@@ -146,9 +144,6 @@ edit files or run commands on your behalf).
 | Symptom | Cause / fix |
 |---------|-------------|
 | `no running session named "default"` | No host is running (or a different `ECLAUDE_PIPE`). Start `eclaude` first; use the same `ECLAUDE_PIPE` for host and `send`. |
-| Under **Bun**, host prints `needs Node … node was not found` and exits | The host runs under Node (Bun can't drive node-pty). Install Node and ensure `node` is on PATH. `eclaude send` itself works under Bun without Node. |
 | Host exits immediately / `claude` not found | `claude` isn't on PATH. Install Claude Code, or point `ECLAUDE_CMD` at the right command. |
-| `node-pty` fails to load after `bun install` | Allow the native postinstall: `bun pm trust @homebridge/node-pty-prebuilt-multiarch`. |
+| `native PTY addon not available for <platform>` | The prebuilt `.node` for your platform/arch isn't present. From a checkout, build it: `npm run build:native` (needs the Rust toolchain). |
 | Sent text appears but doesn't submit (or pastes as multiline) | Tune the Enter timing: raise `ECLAUDE_ENTER_DELAY` (e.g. `250`). |
-
-[node-pty]: https://github.com/microsoft/node-pty
