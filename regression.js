@@ -270,6 +270,10 @@ async function main() {
     const name = 'dup' + uid();
     const p = pipePath(name);
     if (!isWin) {
+      // No host runs here, so create the per-user dir ourselves before occupying.
+      try {
+        fs.mkdirSync(path.dirname(p), { recursive: true, mode: 0o700 });
+      } catch {}
       try {
         fs.unlinkSync(p);
       } catch {}
@@ -298,27 +302,19 @@ async function main() {
     }
   });
 
-  // -- hardening: POSIX socket is owner-only --
+  // -- hardening: POSIX socket lives in an owner-only dir --
   if (!isWin) {
-    await test('POSIX socket is owner-only (no group/other access)', async () => {
+    await test('POSIX socket dir is owner-only (no group/other access)', async () => {
       const name = 'perm' + uid();
       const log = path.join(os.tmpdir(), 'eclaude-test-' + name + '.log');
-      const env = { ...process.env, ECLAUDE_PIPE: name, ECLAUDE_CMD: 'sleep 5', ECLAUDE_LOG: log };
+      // `sh` with no input stays alive on the pty (single-token: ECLAUDE_CMD is not
+      // shell-split on POSIX, so a multi-word command would fail to exec).
+      const env = { ...process.env, ECLAUDE_PIPE: name, ECLAUDE_CMD: 'sh', ECLAUDE_LOG: log };
       const host = spawn(RUNTIME, [BIN, 'start'], { env, stdio: 'ignore' });
       try {
         await waitReady(name);
-        // The host chmods in its own process after listen; poll so we don't race it.
-        const target = pipePath(name);
-        let mode = -1;
-        const deadline = Date.now() + 3000;
-        while (Date.now() < deadline) {
-          try {
-            mode = fs.statSync(target).mode & 0o777;
-          } catch {}
-          if (mode !== -1 && (mode & 0o077) === 0) break;
-          await new Promise((r) => setTimeout(r, 100));
-        }
-        assert.ok(mode !== -1, 'socket file not found');
+        const dir = path.dirname(pipePath(name)); // created 0700 before listen
+        const mode = fs.statSync(dir).mode & 0o777;
         assert.strictEqual(mode & 0o077, 0, 'group/other have access: 0' + mode.toString(8));
       } finally {
         killTree(host.pid);
@@ -337,7 +333,7 @@ async function main() {
   console.log(`\n${pass}/${total} passed.`);
   if (failures.length) {
     console.log('FAILURES:');
-    for (const [name] of failures) console.log('  - ' + name);
+    for (const [name, e] of failures) console.log('  - ' + name + ': ' + (e && e.message));
     process.exit(1);
   }
   console.log('ALL REGRESSION TESTS PASSED');

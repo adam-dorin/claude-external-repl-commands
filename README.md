@@ -101,8 +101,9 @@ edit files or run commands on your behalf).
 
 - The endpoint is **local only** — Windows named pipes reject remote clients; the POSIX
   socket is a filesystem socket, not a network port.
-- The POSIX socket is `chmod 0600` (owner-only); the Windows named pipe is same-user
-  only. So another **local user** can't inject — but any process **running as you** can.
+- The POSIX socket lives in a per-user `0700` directory (`$TMPDIR/eclaude-<uid>/`), so
+  other local users can't traverse to it; the Windows named pipe is same-user only.
+  So another **local user** can't inject — but any process **running as you** can.
 - Injected text is **sanitized** by default (C0 control chars / embedded Enter / ANSI
   escapes stripped) so a single `send` can't smuggle Ctrl-C, multi-submit, or terminal
   escapes. Only the Enter `eclaude` adds submits. Set `ECLAUDE_RAW=1` on the host to send
