@@ -1,5 +1,6 @@
 node_modules/
 smoke.log
+package-lock.json
 
 # Rust build output. Prebuilt .node binaries are produced by CI (not committed yet).
 native/target/
