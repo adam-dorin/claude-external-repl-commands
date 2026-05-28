@@ -19,7 +19,7 @@ jobs:
 
       # Node is needed even for the Bun rows: node-pty's prebuilt postinstall
       # shells out to `node`, and the host re-execs under Node on Windows+Bun.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
 
