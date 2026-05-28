@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Run the JS actions (checkout/setup-node/setup-bun) on Node 24 instead of the
+# deprecated Node 20 runtime. Independent of the node-version installed for tests.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     name: ${{ matrix.os }} / ${{ matrix.runtime }}
@@ -21,7 +26,7 @@ jobs:
       # shells out to `node`, and the host re-execs under Node on Windows+Bun.
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Setup Bun
         if: matrix.runtime == 'bun'
