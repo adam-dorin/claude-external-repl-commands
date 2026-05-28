@@ -147,7 +147,7 @@ pub fn read(h: &PtyHandle, buf: &mut [u8]) -> Option<usize> {
     let ok = unsafe {
         ReadFile(
             h.output_read as HANDLE,
-            buf.as_mut_ptr() as *mut c_void,
+            buf.as_mut_ptr(),
             buf.len() as u32,
             &mut n,
             ptr::null_mut(),
@@ -167,7 +167,7 @@ pub fn write(h: &PtyHandle, data: &[u8]) -> Result<(), String> {
         let ok = unsafe {
             WriteFile(
                 h.input_write as HANDLE,
-                data[off..].as_ptr() as *const c_void,
+                data[off..].as_ptr(),
                 (data.len() - off) as u32,
                 &mut n,
                 ptr::null_mut(),
