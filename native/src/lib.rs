@@ -50,6 +50,9 @@ impl Pty {
         let handle = sys::spawn(&file, &args, cols, rows, cwd.as_deref())
             .map_err(|e| Error::new(Status::GenericFailure, e))?;
 
+        // Reader thread: pump pty output -> onData. On POSIX this ends at EOF when
+        // the child exits; on Windows ConPTY the pipe doesn't EOF on exit, so the
+        // reader is torn down with the process.
         let reader = handle.clone_for_reader();
         std::thread::spawn(move || {
             let mut buf = [0u8; 8192];
@@ -58,10 +61,16 @@ impl Pty {
                     Some(n) if n > 0 => {
                         data_tsfn.call(buf[..n].to_vec(), ThreadsafeFunctionCallMode::Blocking);
                     }
-                    _ => break, // EOF / error => child gone
+                    _ => break,
                 }
             }
-            let code = sys::wait(&reader);
+        });
+
+        // Waiter thread: block on the child and report its exit code. Uses the
+        // process handle (Windows) / waitpid (POSIX), independent of pipe EOF.
+        let waiter = handle.clone_for_reader();
+        std::thread::spawn(move || {
+            let code = sys::wait(&waiter);
             exit_tsfn.call(code, ThreadsafeFunctionCallMode::Blocking);
         });
 

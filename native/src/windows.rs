@@ -7,7 +7,7 @@ use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr;
 
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
 use windows_sys::Win32::System::Console::{
     ClosePseudoConsole, CreatePseudoConsole, ResizePseudoConsole, COORD, HPCON,
@@ -21,6 +21,7 @@ use windows_sys::Win32::System::Threading::{
 
 const PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE: usize = 0x0002_0016;
 const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
+const STARTF_USESTDHANDLES: u32 = 0x0000_0100;
 const INFINITE: u32 = 0xFFFF_FFFF;
 
 #[derive(Clone, Copy)]
@@ -71,9 +72,6 @@ pub fn spawn(
         if hr != 0 {
             return Err(format!("CreatePseudoConsole failed (hr={hr})"));
         }
-        // ConPTY duplicated these; the parent doesn't need its copies.
-        CloseHandle(input_read);
-        CloseHandle(output_write);
 
         // Build the attribute list carrying the pseudoconsole.
         let mut attr_size: usize = 0;
@@ -99,8 +97,14 @@ pub fn spawn(
         let mut si: STARTUPINFOEXW = std::mem::zeroed();
         si.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
         si.lpAttributeList = attr_list;
+        // Don't let the child inherit the parent's (Node's) console std handles —
+        // without this it attaches to Node's console instead of the pseudoconsole.
+        si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+        si.StartupInfo.hStdInput = INVALID_HANDLE_VALUE;
+        si.StartupInfo.hStdOutput = INVALID_HANDLE_VALUE;
+        si.StartupInfo.hStdError = INVALID_HANDLE_VALUE;
 
-        // Command line: file + args joined (simple; assumes no embedded quoting needs).
+        // Command line: file + args joined (simple; no embedded-quote handling).
         let mut cmdline = String::from(file);
         for a in args {
             cmdline.push(' ');
@@ -108,10 +112,7 @@ pub fn spawn(
         }
         let mut cmd_w = wide(&cmdline);
         let cwd_w = cwd.map(wide);
-        let cwd_ptr = cwd_w
-            .as_ref()
-            .map(|v| v.as_ptr())
-            .unwrap_or(ptr::null());
+        let cwd_ptr = cwd_w.as_ref().map(|v| v.as_ptr()).unwrap_or(ptr::null());
 
         let mut pi: PROCESS_INFORMATION = std::mem::zeroed();
         let ok = CreateProcessW(
@@ -119,7 +120,7 @@ pub fn spawn(
             cmd_w.as_mut_ptr(),
             ptr::null(),
             ptr::null(),
-            0, // bInheritHandles = FALSE (ConPTY handles inheritance)
+            0, // bInheritHandles = FALSE (ConPTY routes I/O via the attribute)
             EXTENDED_STARTUPINFO_PRESENT,
             ptr::null(),
             cwd_ptr,
@@ -132,6 +133,10 @@ pub fn spawn(
             return Err("CreateProcessW failed".into());
         }
         CloseHandle(pi.hThread);
+        // ConPTY duplicated these; close the parent's copies so the output pipe
+        // reports EOF once the child (and ConPTY) are gone.
+        CloseHandle(input_read);
+        CloseHandle(output_write);
 
         Ok(PtyHandle {
             input_write: input_write as isize,
