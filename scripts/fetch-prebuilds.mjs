@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-'use strict';
 
 // Download the CI-built native addon binaries into native/ before publishing.
 // The .node files are not committed; CI (build-addon job) uploads them as artifacts.
@@ -8,10 +7,12 @@
 //   node scripts/fetch-prebuilds.mjs [runId]
 // Defaults to the latest successful CI run on main. Requires `gh` (authenticated).
 
-const { execFileSync } = require('node:child_process');
-const { readdirSync } = require('node:fs');
-const path = require('node:path');
+import { execFileSync } from 'node:child_process';
+import { readdirSync, rmSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = 'adam-dorin/claude-external-repl-commands';
 const ARTIFACTS = [
   'eclaude_pty-ubuntu-latest',
@@ -38,6 +39,10 @@ if (!runId) {
 }
 
 console.log(`Fetching prebuilt addons from run ${runId} into native/ ...`);
+// gh refuses to overwrite; clear any locally-built .node first.
+for (const f of readdirSync(nativeDir).filter((f) => f.endsWith('.node'))) {
+  rmSync(path.join(nativeDir, f));
+}
 for (const name of ARTIFACTS) {
   gh(['run', 'download', runId, '--repo', REPO, '-n', name, '-D', nativeDir], {
     stdio: 'inherit',
