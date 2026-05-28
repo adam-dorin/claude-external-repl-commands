@@ -3,6 +3,20 @@
 All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.2.0] - 2026-05-28
+
+Replaced the PTY backend with a first-party native addon. No user-facing CLI changes.
+
+### Changed
+- The host now uses a **first-party native addon** (`native/`, Rust + N-API: `forkpty` on
+  POSIX, ConPTY on Windows) instead of node-pty. It does raw read/write on the pty, so it
+  runs **natively under both Node and Bun** on all platforms.
+
+### Removed
+- **node-pty** dependency (and its `trustedDependencies`) — the package now has zero runtime
+  dependencies; prebuilt `.node` binaries are bundled per platform.
+- The Bun→Node re-exec workaround (no longer needed — Bun drives the addon directly).
+
 ## [0.1.1] - 2026-05-28
 
 ### Changed
@@ -29,5 +43,6 @@ Initial release.
 - Regression suite (`npm test` / `bun regression.js`) and CI across
   `win/linux/mac × node/bun`.
 
+[0.2.0]: https://github.com/adam-dorin/claude-external-repl-commands/releases/tag/v0.2.0
 [0.1.1]: https://github.com/adam-dorin/claude-external-repl-commands/releases/tag/v0.1.1
 [0.1.0]: https://github.com/adam-dorin/claude-external-repl-commands/releases/tag/v0.1.0
