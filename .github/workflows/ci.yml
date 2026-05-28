@@ -61,9 +61,13 @@ jobs:
         run: node native/stage.cjs
       - name: Test addon (spawn/inject/read)
         run: node native/test-addon.cjs
+      # Only needed transiently (fetched at release time, then published), so keep a
+      # short TTL and skip PR runs to avoid piling up storage.
       - name: Upload prebuilt addon
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: eclaude_pty-${{ matrix.os }}
           path: native/eclaude_pty.*.node
           if-no-files-found: error
+          retention-days: 3
