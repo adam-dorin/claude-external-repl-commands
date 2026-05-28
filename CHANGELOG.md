@@ -3,6 +3,17 @@
 All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Multiple named sessions.** Name a session with `-s/--session` (or `ECLAUDE_PIPE`);
+  default name is `default`.
+- `eclaude list` — show running sessions (name, pid, uptime, cwd).
+- `eclaude kill [<name>]` — stop a session (the sole one if unnamed).
+- `send`/`kill` auto-target the only running session; with several live, they list them
+  and require `-s <name>`. Sessions are tracked under `~/.eclaude/sessions/` and stale
+  entries (crashed hosts) are pruned on read.
+
 ## [0.2.0] - 2026-05-28
 
 Replaced the PTY backend with a first-party native addon. No user-facing CLI changes.

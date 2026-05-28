@@ -28,6 +28,7 @@ const VERSION = require('./package.json').version;
 const { pipePath } = require('./lib/pipe');
 const { normalizeCommand } = require('./lib/send');
 const { sanitizeInput } = require('./lib/host');
+const registry = require('./lib/registry');
 
 const QUICK_CMD = isWin ? 'hostname' : 'true'; // exits immediately -> host exits 0
 let seq = 0;
@@ -137,6 +138,32 @@ async function e2eSend(extraEnv = {}) {
   }
 }
 
+// Start a persistent host on a named session (interactive shell stays alive until
+// killed). Returns a handle to stop + clean up.
+async function startHost(name) {
+  const log = path.join(os.tmpdir(), 'eclaude-test-' + name + '.log');
+  const env = {
+    ...process.env,
+    ECLAUDE_PIPE: name,
+    ECLAUDE_CMD: isWin ? 'cmd.exe' : 'sh',
+    ECLAUDE_LOG: log,
+  };
+  const host = spawn(RUNTIME, [BIN, 'start'], { env, stdio: 'ignore' });
+  await waitReady(name);
+  return {
+    name,
+    log,
+    pid: host.pid,
+    stop() {
+      killTree(host.pid);
+      registry.deregister(name); // forced kill skips the host's own cleanup
+      try {
+        fs.unlinkSync(log);
+      } catch {}
+    },
+  };
+}
+
 // Temporarily set env vars around a fn, restoring previous values.
 function withEnv(vars, fn) {
   const prev = {};
@@ -227,10 +254,10 @@ async function main() {
     assert.ok(/unknown command "sedn"/.test(r.stderr), r.stderr);
     assert.ok(!/session .* live/.test(r.stderr + r.stdout), 'must not have started a session');
   });
-  await test('unknown flag errors (exit 2)', () => {
+  await test('unknown flag errors (exit 2), does not pass through to claude', () => {
     const r = cli(['--bogus']);
     assert.strictEqual(r.status, 2);
-    assert.ok(/unknown command/.test(r.stderr), r.stderr);
+    assert.ok(/unknown option/.test(r.stderr), r.stderr);
   });
 
   // -- send errors --
@@ -303,6 +330,84 @@ async function main() {
         } catch {}
       }
     }
+  });
+
+  // -- multi-session: list + kill lifecycle --
+  await test('list shows a running session; kill removes it', async () => {
+    const name = 'ms' + uid();
+    const h = await startHost(name);
+    try {
+      const listed = cli(['list']);
+      assert.ok(listed.stdout.includes(name), 'list should include ' + name + '\n' + listed.stdout);
+      const killed = cli(['kill', name]);
+      assert.strictEqual(killed.status, 0, killed.stderr);
+      assert.ok(/killed session/.test(killed.stdout), killed.stdout);
+      const after = cli(['list']);
+      assert.ok(!after.stdout.includes(name), 'killed session should be gone\n' + after.stdout);
+    } finally {
+      h.stop();
+    }
+  });
+
+  // -- multi-session: send auto-routes to the sole live session (no -s) --
+  await test('send auto-routes when exactly one session is live', async () => {
+    const name = 'ms' + uid();
+    const h = await startHost(name);
+    const marker = 'AUTO_' + uid();
+    const line = isWin ? `echo ${marker} & exit` : `echo ${marker}; exit`;
+    try {
+      const r = cli(['send', line]); // no -s, no ECLAUDE_PIPE
+      assert.strictEqual(r.status, 0, r.stderr);
+      assert.ok(await waitMarker(h.log, marker), 'auto-routed command did not land');
+    } finally {
+      h.stop();
+    }
+  });
+
+  // -- multi-session: ambiguous send errors and lists candidates --
+  await test('send with multiple live sessions requires -s', async () => {
+    const a = await startHost('msA' + uid());
+    const b = await startHost('msB' + uid());
+    try {
+      const r = cli(['send', 'hello']); // no -s, two live -> ambiguous
+      assert.strictEqual(r.status, 1, 'should refuse when ambiguous');
+      assert.ok(/multiple sessions/i.test(r.stderr), r.stderr);
+      assert.ok(r.stderr.includes(a.name) && r.stderr.includes(b.name), r.stderr);
+    } finally {
+      a.stop();
+      b.stop();
+    }
+  });
+
+  // -- multi-session: -s targets a specific session --
+  await test('send -s targets the named session', async () => {
+    const a = await startHost('msT' + uid());
+    const b = await startHost('msO' + uid());
+    const marker = 'TARGET_' + uid();
+    const line = isWin ? `echo ${marker} & exit` : `echo ${marker}; exit`;
+    try {
+      const r = cli(['send', '-s', a.name, line]);
+      assert.strictEqual(r.status, 0, r.stderr);
+      assert.ok(await waitMarker(a.log, marker), 'targeted session did not receive command');
+    } finally {
+      a.stop();
+      b.stop();
+    }
+  });
+
+  // -- multi-session: stale registry entries are pruned --
+  await test('liveSessions prunes a dead entry', async () => {
+    const name = 'stale' + uid();
+    const dir = path.join(os.homedir(), '.eclaude', 'sessions');
+    const file = path.join(dir, encodeURIComponent(name) + '.json');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ name, pipe: pipePath(name), pid: 999999, cwd: '/tmp', startedAt: Date.now() })
+    );
+    const live = await registry.liveSessions();
+    assert.ok(!live.some((s) => s.name === name), 'dead session should not be live');
+    assert.ok(!fs.existsSync(file), 'dead session file should be pruned');
   });
 
   // -- hardening: POSIX socket lives in an owner-only dir --

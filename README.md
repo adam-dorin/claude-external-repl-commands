@@ -75,9 +75,28 @@ or a cron job — all just shell out to `eclaude send`.
 
 | Command | Does |
 |---------|------|
-| `eclaude` / `eclaude start [args]` | Start the session; extra args pass through to `claude`. |
-| `eclaude send <command>` | Inject `<command>` (+ Enter) into the running session. |
+| `eclaude` / `eclaude start [-s <name>] [args]` | Start a session; extra args pass through to `claude`. |
+| `eclaude send [-s <name>] <command>` | Inject `<command>` (+ Enter) into a session. |
+| `eclaude list` | List running sessions (name, pid, uptime, cwd). |
+| `eclaude kill [<name>]` | Stop a session (the sole one if unnamed). |
 | `eclaude --help` / `--version` | Usage / version. |
+
+## Multiple sessions
+
+Run as many sessions as you like, each with a name (`-s/--session`, or `ECLAUDE_PIPE`).
+The default name is `default`.
+
+```sh
+eclaude -s work                 # start a session named "work"
+eclaude -s docs                 # ...and another named "docs"
+eclaude list                    # see them
+eclaude send -s work /clear     # target one explicitly
+eclaude kill docs               # stop one
+```
+
+`send`/`kill` **auto-target the sole running session**, so the single-session case needs
+no `-s`. With several live, they print the list and ask you to pass `-s <name>`. Sessions
+are tracked per-user under `~/.eclaude/sessions/` and pruned when their host exits.
 
 ## Runtimes: Node and Bun
 
