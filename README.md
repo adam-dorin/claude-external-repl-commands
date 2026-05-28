@@ -1,5 +1,9 @@
 # eclaude
 
+[![npm](https://img.shields.io/npm/v/eclaude)](https://www.npmjs.com/package/eclaude)
+[![CI](https://github.com/adam-dorin/claude-external-repl-commands/actions/workflows/ci.yml/badge.svg)](https://github.com/adam-dorin/claude-external-repl-commands/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/eclaude)](LICENSE)
+
 Drive a **live, interactive Claude Code session** from outside it. Host `claude`
 inside a pseudo-terminal you own, then push REPL/slash commands — like `/clear` or
 `/compact` — into the running session from any other terminal.
@@ -52,6 +56,21 @@ eclaude send "summarize what we just did"
 ```
 
 The command lands in the live session and submits.
+
+## Why
+
+Claude's slash commands are interactive-only — no flag, setting, or hook can invoke
+`/clear`, `/compact`, etc. `eclaude` lets an **external trigger** drive them: anything
+that can run a command can now steer the live session. For example, clear it whenever a
+trigger file changes:
+
+```sh
+# Linux/macOS: clear the session each time ./trigger is touched
+while inotifywait -qe modify ./trigger; do eclaude send /clear; done
+```
+
+Other triggers: a Claude Code **Stop hook**, a file watcher, a CI step, an editor task,
+or a cron job — all just shell out to `eclaude send`.
 
 ## Commands
 
@@ -121,5 +140,15 @@ edit files or run commands on your behalf).
   after `ECLAUDE_ENTER_DELAY` so text isn't treated as a multiline paste.
 - **Git Bash mangles `/clear`.** MSYS rewrites a leading-slash arg into a path; `send`
   collapses it back on Windows (disable with `ECLAUDE_RAW=1`). PowerShell is unaffected.
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---------|-------------|
+| `no running session named "default"` | No host is running (or a different `ECLAUDE_PIPE`). Start `eclaude` first; use the same `ECLAUDE_PIPE` for host and `send`. |
+| Under **Bun**, host prints `needs Node … node was not found` and exits | The host runs under Node (Bun can't drive node-pty). Install Node and ensure `node` is on PATH. `eclaude send` itself works under Bun without Node. |
+| Host exits immediately / `claude` not found | `claude` isn't on PATH. Install Claude Code, or point `ECLAUDE_CMD` at the right command. |
+| `node-pty` fails to load after `bun install` | Allow the native postinstall: `bun pm trust @homebridge/node-pty-prebuilt-multiarch`. |
+| Sent text appears but doesn't submit (or pastes as multiline) | Tune the Enter timing: raise `ECLAUDE_ENTER_DELAY` (e.g. `250`). |
 
 [node-pty]: https://github.com/microsoft/node-pty
