@@ -298,17 +298,28 @@ async function main() {
     }
   });
 
-  // -- hardening: POSIX socket is owner-only (0600) --
+  // -- hardening: POSIX socket is owner-only --
   if (!isWin) {
-    await test('POSIX socket is chmod 0600', async () => {
+    await test('POSIX socket is owner-only (no group/other access)', async () => {
       const name = 'perm' + uid();
       const log = path.join(os.tmpdir(), 'eclaude-test-' + name + '.log');
       const env = { ...process.env, ECLAUDE_PIPE: name, ECLAUDE_CMD: 'sleep 5', ECLAUDE_LOG: log };
       const host = spawn(RUNTIME, [BIN, 'start'], { env, stdio: 'ignore' });
       try {
         await waitReady(name);
-        const mode = fs.statSync(pipePath(name)).mode & 0o777;
-        assert.strictEqual(mode, 0o600, 'mode is 0' + mode.toString(8));
+        // The host chmods in its own process after listen; poll so we don't race it.
+        const target = pipePath(name);
+        let mode = -1;
+        const deadline = Date.now() + 3000;
+        while (Date.now() < deadline) {
+          try {
+            mode = fs.statSync(target).mode & 0o777;
+          } catch {}
+          if (mode !== -1 && (mode & 0o077) === 0) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        assert.ok(mode !== -1, 'socket file not found');
+        assert.strictEqual(mode & 0o077, 0, 'group/other have access: 0' + mode.toString(8));
       } finally {
         killTree(host.pid);
         try {

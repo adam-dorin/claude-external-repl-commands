@@ -66,15 +66,15 @@ The command lands in the live session and submits.
 Both are supported; Bun is fine for day-to-day use.
 
 - **`eclaude send`** runs natively under Node and Bun on all platforms.
-- **The host** writes to the pty. On **Windows under Bun** that write path is broken
-  (Bun can't adopt node-pty's conin named-pipe fd as a socket), so the host
-  **transparently re-execs under Node**. This is automatic and requires `node` on
-  PATH. Everywhere else the host runs natively.
+- **The host** writes to the pty, and Bun can't drive node-pty's fd-backed I/O on
+  **any** platform (Windows throws, POSIX silently drops writes). So under Bun the host
+  **transparently re-execs under Node** — automatic, but it requires `node` on PATH.
+  Under Node the host runs directly.
 
-> **Platform status:** developed and manually verified on **Windows**. macOS/Linux
-> (and Bun on those platforms) are supported by design and exercised by CI
-> (`win/linux/mac × node/bun`), but haven't been hand-tested against a live Claude
-> session yet — please report issues.
+> **Platform status:** developed and manually verified on **Windows** (including against
+> a live Claude session). macOS/Linux are exercised by CI (`win/linux/mac × node/bun`,
+> running the regression suite) but not yet hand-tested against live Claude — please
+> report issues.
 
 ```sh
 bun regression.js     # full suite (no Claude/TTY needed)
