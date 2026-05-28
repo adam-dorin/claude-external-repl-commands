@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
 
+## [0.1.1] - 2026-05-28
+
+### Changed
+- Docs only: README badges (npm / CI / license), a "Why" use-case section, and a
+  Troubleshooting table; added this changelog. Republished so the npm package page
+  reflects the updated README. No code changes.
+
 ## [0.1.0] - 2026-05-28
 
 Initial release.
@@ -22,4 +29,5 @@ Initial release.
 - Regression suite (`npm test` / `bun regression.js`) and CI across
   `win/linux/mac × node/bun`.
 
+[0.1.1]: https://github.com/adam-dorin/claude-external-repl-commands/releases/tag/v0.1.1
 [0.1.0]: https://github.com/adam-dorin/claude-external-repl-commands/releases/tag/v0.1.0
