@@ -15,7 +15,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         runtime: [node, bun]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Node is needed even for the Bun rows: node-pty's prebuilt postinstall
       # shells out to `node`, and the host re-execs under Node on Windows+Bun.
