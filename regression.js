@@ -159,10 +159,13 @@ async function main() {
   // -- unit: pipe-path resolution --
   await test('pipePath formats per platform', () => {
     const p = pipePath('xyz');
-    if (isWin) assert.strictEqual(p, '\\\\.\\pipe\\eclaude-xyz');
-    else {
+    if (isWin) {
+      assert.strictEqual(p, '\\\\.\\pipe\\eclaude-xyz');
+    } else {
+      // $TMPDIR/eclaude-<uid>/xyz.sock
       assert.ok(p.startsWith(os.tmpdir()), p);
-      assert.ok(p.endsWith('eclaude-xyz.sock'), p);
+      assert.strictEqual(path.basename(p), 'xyz.sock', p);
+      assert.ok(path.basename(path.dirname(p)).startsWith('eclaude-'), p);
     }
   });
 
