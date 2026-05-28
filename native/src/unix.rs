@@ -39,7 +39,7 @@ pub fn spawn(
         None => None,
     };
 
-    let ws = libc::winsize {
+    let mut ws = libc::winsize {
         ws_row: rows,
         ws_col: cols,
         ws_xpixel: 0,
@@ -47,7 +47,16 @@ pub fn spawn(
     };
 
     let mut master: c_int = 0;
-    let pid = unsafe { libc::forkpty(&mut master, ptr::null_mut(), ptr::null(), &ws) };
+    // macOS declares termp/winp as *mut (Linux uses *const); *mut coerces to *const,
+    // so passing *mut compiles on both.
+    let pid = unsafe {
+        libc::forkpty(
+            &mut master,
+            ptr::null_mut(),
+            ptr::null_mut::<libc::termios>(),
+            &mut ws as *mut libc::winsize,
+        )
+    };
     if pid < 0 {
         return Err("forkpty failed".to_string());
     }
