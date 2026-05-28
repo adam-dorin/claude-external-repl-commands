@@ -1,0 +1,9 @@
+# Normalize line endings. JS/JSON must stay LF so the `#!/usr/bin/env node`
+# shebang in bin/eclaude.js doesn't gain a CR and break on Linux/macOS.
+* text=auto eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+bun.lock text eol=lf
+LICENSE text eol=lf

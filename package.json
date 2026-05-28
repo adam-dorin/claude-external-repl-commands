@@ -1,0 +1,54 @@
+{
+  "name": "eclaude",
+  "version": "0.1.0",
+  "description": "Drive a live, interactive Claude Code session from outside: host Claude in a pseudo-terminal and inject REPL/slash commands (e.g. /clear) with `eclaude send`.",
+  "bin": {
+    "eclaude": "bin/eclaude.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node regression.js",
+    "test:bun": "bun regression.js",
+    "smoke": "node smoke-test.js",
+    "smoke:bun": "bun smoke-test.js",
+    "prepublishOnly": "node regression.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "repl",
+    "cli",
+    "pty",
+    "conpty",
+    "node-pty",
+    "send-keys"
+  ],
+  "license": "MIT",
+  "author": "Adam Dorin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adam-dorin/claude-external-repl-commands.git"
+  },
+  "homepage": "https://github.com/adam-dorin/claude-external-repl-commands#readme",
+  "bugs": {
+    "url": "https://github.com/adam-dorin/claude-external-repl-commands/issues"
+  },
+  "dependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1"
+  },
+  "trustedDependencies": [
+    "@homebridge/node-pty-prebuilt-multiarch"
+  ]
+}

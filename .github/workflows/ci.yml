@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        runtime: [node, bun]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node is needed even for the Bun rows: node-pty's prebuilt postinstall
+      # shells out to `node`, and the host re-execs under Node on Windows+Bun.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Bun
+        if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install deps (node)
+        if: matrix.runtime == 'node'
+        run: npm install
+
+      - name: Install deps (bun)
+        if: matrix.runtime == 'bun'
+        run: bun install
+
+      - name: Regression suite (node)
+        if: matrix.runtime == 'node'
+        run: node regression.js
+
+      - name: Regression suite (bun)
+        if: matrix.runtime == 'bun'
+        run: bun regression.js

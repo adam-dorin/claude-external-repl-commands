@@ -1,0 +1,5 @@
+node_modules/
+smoke.log
+
+# legacy prototype (original Stop-hook /clear use case), archived out of the way
+old/
