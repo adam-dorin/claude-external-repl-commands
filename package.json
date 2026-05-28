@@ -1,6 +1,6 @@
 {
   "name": "eclaude",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Drive a live, interactive Claude Code session from outside: host Claude in a pseudo-terminal and inject REPL/slash commands (e.g. /clear) with `eclaude send`.",
   "bin": {
     "eclaude": "bin/eclaude.js"
